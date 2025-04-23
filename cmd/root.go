@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/fatih/color"
+	"github.com/jishnusygal/terraform-docs-extended/pkg/processor"
 	"github.com/spf13/cobra"
 )
 
@@ -46,16 +47,22 @@ separated into "Required" and "Optional" sections.`,
 		}
 
 		// Check if terraform-docs is installed
-		if !isTerraformDocsInstalled() {
+		if !processor.IsTerraformDocsInstalled() {
 			fmt.Fprintf(os.Stderr, "Error: terraform-docs is not installed or not found in PATH\n")
 			os.Exit(1)
 		}
 
 		// Process directories based on recursive flag
+		var err error
 		if recursive {
-			processRecursively(modulePath, outputFormat, outputFile, moduleName, moduleSource, quiet)
+			err = processor.ProcessRecursively(modulePath, outputFormat, outputFile, moduleName, moduleSource, quiet)
 		} else {
-			processDirectory(modulePath, outputFormat, outputFile, moduleName, moduleSource, quiet)
+			err = processor.ProcessDirectory(modulePath, outputFormat, outputFile, moduleName, moduleSource, quiet)
+		}
+
+		// Handle any errors
+		if err != nil {
+			errorExit(err)
 		}
 	},
 }
@@ -90,17 +97,4 @@ func init() {
 	rootCmd.Flags().StringVarP(&moduleName, "name", "n", "example", "Module name to use in the usage example")
 	rootCmd.Flags().StringVarP(&moduleSource, "source", "s", "path/to/module", "Module source to use in the usage example")
 	rootCmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress informational output")
-}
-
-// Placeholder functions to avoid compilation errors
-func isTerraformDocsInstalled() bool {
-	return true
-}
-
-func processRecursively(path string, format string, outputFile string, moduleName string, moduleSource string, quiet bool) {
-	// Implementation will be added in the processor package
-}
-
-func processDirectory(path string, format string, outputFile string, moduleName string, moduleSource string, quiet bool) {
-	// Implementation will be added in the processor package
 }
