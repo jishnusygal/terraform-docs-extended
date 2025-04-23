@@ -21,7 +21,9 @@ A command-line tool that extends `terraform-docs` functionality by adding a deta
 
 ### Installation Options
 
-#### Using Go Install
+> **Note:** This project is currently in development. Installation via package managers like Homebrew will be available after the full release.
+
+#### Using Go Install (Recommended)
 
 The simplest way to install the latest version:
 
@@ -35,40 +37,14 @@ Or install a specific version:
 go install github.com/jishnusygal/terraform-docs-extended@v0.1.0
 ```
 
-#### Using Homebrew
-
-```bash
-# Add the tap (only needed once)
-brew tap jishnusygal/tap
-
-# Install the tool
-brew install jishnusygal/tap/terraform-docs-extended
-```
-
-#### Using Docker
-
-```bash
-# Pull the image
-docker pull ghcr.io/jishnusygal/terraform-docs-extended:latest
-
-# Run on current directory
-docker run -v $(pwd):/workspace ghcr.io/jishnusygal/terraform-docs-extended:latest --path=/workspace
-```
-
-#### Using the Installation Script
-
-This script will automatically download and install the latest version:
-
-```bash
-curl -sSL https://raw.githubusercontent.com/jishnusygal/terraform-docs-extended/main/scripts/install.sh | bash
-```
-
 #### From Source
 
 ```bash
 git clone https://github.com/jishnusygal/terraform-docs-extended.git
 cd terraform-docs-extended
-go install
+go build -o terraform-docs-extended
+# Optional: Move to a directory in your PATH
+sudo mv terraform-docs-extended /usr/local/bin/
 ```
 
 ### Verifying Installation
