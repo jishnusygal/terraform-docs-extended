@@ -19,12 +19,64 @@ A command-line tool that extends `terraform-docs` functionality by adding a deta
 - Go 1.16 or later
 - `terraform-docs` installed and available in your PATH
 
-### Install from source
+### Installation Options
+
+#### Using Go Install
+
+The simplest way to install the latest version:
+
+```bash
+go install github.com/jishnusygal/terraform-docs-extended@latest
+```
+
+Or install a specific version:
+
+```bash
+go install github.com/jishnusygal/terraform-docs-extended@v0.1.0
+```
+
+#### Using Homebrew
+
+```bash
+# Add the tap (only needed once)
+brew tap jishnusygal/tap
+
+# Install the tool
+brew install jishnusygal/tap/terraform-docs-extended
+```
+
+#### Using Docker
+
+```bash
+# Pull the image
+docker pull ghcr.io/jishnusygal/terraform-docs-extended:latest
+
+# Run on current directory
+docker run -v $(pwd):/workspace ghcr.io/jishnusygal/terraform-docs-extended:latest --path=/workspace
+```
+
+#### Using the Installation Script
+
+This script will automatically download and install the latest version:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/jishnusygal/terraform-docs-extended/main/scripts/install.sh | bash
+```
+
+#### From Source
 
 ```bash
 git clone https://github.com/jishnusygal/terraform-docs-extended.git
 cd terraform-docs-extended
 go install
+```
+
+### Verifying Installation
+
+Verify the installation by running:
+
+```bash
+terraform-docs-extended --version
 ```
 
 ## Usage
@@ -56,6 +108,8 @@ terraform-docs-extended --format=json --path=/path/to/module
 | `--format` | Output format (markdown or json) | markdown |
 | `--name` | Module name to use in the usage example | example |
 | `--source` | Module source to use in the usage example | path/to/module |
+| `--quiet` | Suppress informational output | false |
+| `--version` | Show version information | - |
 
 ## Example Output
 
