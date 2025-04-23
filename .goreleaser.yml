@@ -44,16 +44,20 @@ changelog:
       - Merge pull request
       - Merge branch
 
+# Homebrew formula generation
 brews:
   - name: terraform-docs-extended
     homepage: "https://github.com/jishnusygal/terraform-docs-extended"
     description: "Extended Terraform module documentation generator"
     license: "MIT"
+    dependencies:
+      - name: terraform-docs
     tap:
       owner: jishnusygal
       name: homebrew-tap
+      token: "{{ .Env.GITHUB_TOKEN }}"
     folder: Formula
     install: |
       bin.install "terraform-docs-extended"
     test: |
-      system "#{bin}/terraform-docs-extended --version"
+      system "#{bin}/terraform-docs-extended", "--version"
