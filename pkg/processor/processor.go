@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/jishnusygal/terraform-docs-extended/pkg/formatter"
 	"github.com/jishnusygal/terraform-docs-extended/pkg/terraform"
@@ -45,7 +44,6 @@ func ProcessRecursively(root string, format string, outputFile string, moduleNam
 					outputPath = ""
 				} else {
 					// Create output filename based on directory name
-					dirName := filepath.Base(path)
 					outputPath = filepath.Join(path, fmt.Sprintf("README.%s", format))
 				}
 			}
