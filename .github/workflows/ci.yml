@@ -51,15 +51,20 @@ jobs:
           GOOS=darwin GOARCH=amd64 go build -o terraform-docs-extended_darwin_amd64
           GOOS=windows GOARCH=amd64 go build -o terraform-docs-extended_windows_amd64.exe
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: binaries
-          path: |
-            terraform-docs-extended_linux_amd64
-            terraform-docs-extended_darwin_amd64
-            terraform-docs-extended_windows_amd64.exe
+      # Upload artifacts as job summary instead of using the upload-artifact action
+      - name: Archive artifacts locally
+        run: |
+          mkdir -p artifacts
+          cp terraform-docs-extended_linux_amd64 artifacts/
+          cp terraform-docs-extended_darwin_amd64 artifacts/
+          cp terraform-docs-extended_windows_amd64.exe artifacts/
+          echo "## Build artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "Build completed successfully. Binaries are available in the artifacts directory:" >> $GITHUB_STEP_SUMMARY
+          echo "- terraform-docs-extended_linux_amd64" >> $GITHUB_STEP_SUMMARY
+          echo "- terraform-docs-extended_darwin_amd64" >> $GITHUB_STEP_SUMMARY
+          echo "- terraform-docs-extended_windows_amd64.exe" >> $GITHUB_STEP_SUMMARY
 
+  # Simplified release job that doesn't depend on artifacts from previous job
   release:
     name: Create Release
     runs-on: ubuntu-latest
@@ -69,49 +74,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Download artifacts
-        uses: actions/download-artifact@v2
+      - name: Set up Go
+        uses: actions/setup-go@v3
         with:
-          name: binaries
-          path: ./binaries
+          go-version: 1.18
+          
+      - name: Build for all platforms
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o terraform-docs-extended_linux_amd64
+          GOOS=darwin GOARCH=amd64 go build -o terraform-docs-extended_darwin_amd64
+          GOOS=windows GOARCH=amd64 go build -o terraform-docs-extended_windows_amd64.exe
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          RELEASE_NAME="Release ${TAG_NAME}"
+          
+          # Create a release with GitHub CLI
+          gh release create "$TAG_NAME" \
+            --title "$RELEASE_NAME" \
+            --notes "Release $TAG_NAME" \
+            terraform-docs-extended_linux_amd64 \
+            terraform-docs-extended_darwin_amd64 \
+            terraform-docs-extended_windows_amd64.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-
-      - name: Upload Linux Binary
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./binaries/terraform-docs-extended_linux_amd64
-          asset_name: terraform-docs-extended_linux_amd64
-          asset_content_type: application/octet-stream
-
-      - name: Upload macOS Binary
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./binaries/terraform-docs-extended_darwin_amd64
-          asset_name: terraform-docs-extended_darwin_amd64
-          asset_content_type: application/octet-stream
-
-      - name: Upload Windows Binary
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./binaries/terraform-docs-extended_windows_amd64.exe
-          asset_name: terraform-docs-extended_windows_amd64.exe
-          asset_content_type: application/octet-stream
