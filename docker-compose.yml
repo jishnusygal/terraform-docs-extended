@@ -1,0 +1,11 @@
+version: '3'
+
+services:
+  terraform-docs-extended:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    command: ["--path", "/workspace", "--recursive"]
