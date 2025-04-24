@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/jishnusygal/terraform-docs-extended/pkg/config"
 )
 
 // Variable represents a Terraform variable
@@ -40,32 +42,65 @@ type sections struct {
 	Show []string `json:"show,omitempty"`
 }
 
+// FormatterContext contains all the configuration and context for formatting
+type FormatterContext struct {
+	Config      config.Config
+	DocsConfig  TerraformDocsConfig
+	ModulePath  string
+}
+
+// NewFormatterContext creates a context for formatting with configuration
+func NewFormatterContext(modulePath string) (FormatterContext, error) {
+	// Load custom configuration
+	cfg, err := config.LoadConfig(modulePath)
+	if err != nil {
+		return FormatterContext{}, fmt.Errorf("failed to load configuration: %w", err)
+	}
+
+	// Load terraform-docs configuration
+	docsConfig := loadTerraformDocsConfig(modulePath)
+
+	return FormatterContext{
+		Config:      cfg,
+		DocsConfig:  docsConfig,
+		ModulePath:  modulePath,
+	}, nil
+}
+
 // GenerateDoc creates the complete documentation
 func GenerateDoc(module Module, format string, moduleSource string) string {
+	// Create formatter context
+	ctx, err := NewFormatterContext(module.Path)
+	if err != nil {
+		log.Printf("Warning: using default configuration due to error: %v", err)
+		// Continue with default configuration
+		ctx = FormatterContext{
+			Config:     config.DefaultConfig(),
+			ModulePath: module.Path,
+		}
+	}
+
 	switch format {
 	case "markdown":
-		return GenerateMarkdownDoc(module, moduleSource)
+		return GenerateMarkdownDocWithContext(module, moduleSource, ctx)
 	case "json":
-		return GenerateJSONDoc(module, moduleSource)
+		return GenerateJSONDocWithContext(module, moduleSource, ctx)
 	default:
 		log.Fatalf("Unsupported output format: %s", format)
 		return ""
 	}
 }
 
-// GenerateMarkdownDoc generates Markdown documentation
-func GenerateMarkdownDoc(module Module, moduleSource string) string {
+// GenerateMarkdownDocWithContext generates Markdown documentation using the formatter context
+func GenerateMarkdownDocWithContext(module Module, moduleSource string, ctx FormatterContext) string {
 	var sb strings.Builder
 	
 	// Create a usage formatter
-	formatter := NewUsageFormatter(module.Variables, module.Name, moduleSource)
-	
-	// Get the header and footer from terraform-docs config, if it exists
-	config := loadTerraformDocsConfig(module.Path)
+	formatter := NewUsageFormatter(module.Variables, module.Name, moduleSource, ctx)
 	
 	// Add header from terraform-docs config if available
-	if config.Header != "" {
-		sb.WriteString(config.Header)
+	if ctx.DocsConfig.Header != "" {
+		sb.WriteString(ctx.DocsConfig.Header)
 		sb.WriteString("\n\n")
 	}
 	
@@ -108,12 +143,26 @@ func GenerateMarkdownDoc(module Module, moduleSource string) string {
 	sb.WriteString(formatter.FormatMarkdown())
 	
 	// Add footer from terraform-docs config if available
-	if config.Footer != "" {
+	if ctx.DocsConfig.Footer != "" {
 		sb.WriteString("\n")
-		sb.WriteString(config.Footer)
+		sb.WriteString(ctx.DocsConfig.Footer)
 	}
 
 	return sb.String()
+}
+
+// For backward compatibility
+func GenerateMarkdownDoc(module Module, moduleSource string) string {
+	ctx, err := NewFormatterContext(module.Path)
+	if err != nil {
+		log.Printf("Warning: using default configuration due to error: %v", err)
+		ctx = FormatterContext{
+			Config:     config.DefaultConfig(),
+			DocsConfig: loadTerraformDocsConfig(module.Path),
+			ModulePath: module.Path,
+		}
+	}
+	return GenerateMarkdownDocWithContext(module, moduleSource, ctx)
 }
 
 // loadTerraformDocsConfig attempts to load the terraform-docs configuration
@@ -166,16 +215,13 @@ func fileExists(path string) bool {
 	return !info.IsDir()
 }
 
-// GenerateJSONDoc generates JSON documentation
-func GenerateJSONDoc(module Module, moduleSource string) string {
+// GenerateJSONDocWithContext generates JSON documentation using the formatter context
+func GenerateJSONDocWithContext(module Module, moduleSource string, ctx FormatterContext) string {
 	// Create a usage formatter
-	formatter := NewUsageFormatter(module.Variables, module.Name, moduleSource)
+	formatter := NewUsageFormatter(module.Variables, module.Name, moduleSource, ctx)
 	
 	// Get the structured usage section
 	usage := formatter.FormatJSON()
-	
-	// Get the header and footer from terraform-docs config, if it exists
-	config := loadTerraformDocsConfig(module.Path)
 	
 	// Create the full document
 	doc := map[string]interface{}{
@@ -186,11 +232,11 @@ func GenerateJSONDoc(module Module, moduleSource string) string {
 	}
 	
 	// Add header and footer if available
-	if config.Header != "" {
-		doc["header"] = config.Header
+	if ctx.DocsConfig.Header != "" {
+		doc["header"] = ctx.DocsConfig.Header
 	}
-	if config.Footer != "" {
-		doc["footer"] = config.Footer
+	if ctx.DocsConfig.Footer != "" {
+		doc["footer"] = ctx.DocsConfig.Footer
 	}
 	
 	// Sort variables by name for consistent output
@@ -241,19 +287,35 @@ func GenerateJSONDoc(module Module, moduleSource string) string {
 	return string(bytes)
 }
 
+// For backward compatibility
+func GenerateJSONDoc(module Module, moduleSource string) string {
+	ctx, err := NewFormatterContext(module.Path)
+	if err != nil {
+		log.Printf("Warning: using default configuration due to error: %v", err)
+		ctx = FormatterContext{
+			Config:     config.DefaultConfig(),
+			DocsConfig: loadTerraformDocsConfig(module.Path),
+			ModulePath: module.Path,
+		}
+	}
+	return GenerateJSONDocWithContext(module, moduleSource, ctx)
+}
+
 // UsageFormatter handles generation of the Usage section
 type UsageFormatter struct {
-	Variables map[string]Variable
+	Variables  map[string]Variable
 	ModuleName string
 	ModulePath string
+	Context    FormatterContext
 }
 
 // NewUsageFormatter creates a new formatter with the given variables
-func NewUsageFormatter(variables map[string]Variable, moduleName string, modulePath string) *UsageFormatter {
+func NewUsageFormatter(variables map[string]Variable, moduleName string, modulePath string, ctx FormatterContext) *UsageFormatter {
 	return &UsageFormatter{
-		Variables: variables,
+		Variables:  variables,
 		ModuleName: moduleName,
 		ModulePath: modulePath,
+		Context:    ctx,
 	}
 }
 
@@ -276,7 +338,7 @@ func (f *UsageFormatter) FormatMarkdown() string {
 	if len(required) > 0 {
 		sb.WriteString("  # Required inputs\n")
 		for _, v := range required {
-			formattedType := formatTypeForUsage(v.Type)
+			formattedType := f.formatTypeWithConfig(v.Type)
 			// Hard-code the exact format for required variables
 			sb.WriteString(fmt.Sprintf("  %s                = # %s\n", v.Name, formattedType))
 		}
@@ -287,7 +349,7 @@ func (f *UsageFormatter) FormatMarkdown() string {
 	if len(optional) > 0 {
 		sb.WriteString("  # Optional inputs\n")
 		for _, v := range optional {
-			formattedType := formatTypeForUsage(v.Type)
+			formattedType := f.formatTypeWithConfig(v.Type)
 			// Hard-code the exact format for optional variables
 			sb.WriteString(fmt.Sprintf("  # %s               = %s\n", v.Name, formattedType))
 		}
@@ -314,7 +376,7 @@ func (f *UsageFormatter) FormatJSON() map[string]interface{} {
 	
 	// Populate required variables
 	for _, v := range required {
-		formattedType := formatTypeForUsage(v.Type)
+		formattedType := f.formatTypeWithConfig(v.Type)
 		
 		varInfo := map[string]interface{}{
 			"name": v.Name,
@@ -329,7 +391,7 @@ func (f *UsageFormatter) FormatJSON() map[string]interface{} {
 	
 	// Populate optional variables
 	for _, v := range optional {
-		formattedType := formatTypeForUsage(v.Type)
+		formattedType := f.formatTypeWithConfig(v.Type)
 		
 		varInfo := map[string]interface{}{
 			"name": v.Name,
@@ -369,8 +431,62 @@ func (f *UsageFormatter) separateVariables() ([]Variable, []Variable) {
 	return required, optional
 }
 
-// formatTypeForUsage ensures the type is correctly formatted for the usage example
-func formatTypeForUsage(typeStr string) string {
+// formatTypeWithConfig formats the type string based on configuration
+func (f *UsageFormatter) formatTypeWithConfig(typeStr string) string {
+	// Check for custom formats defined in config
+	if format, ok := f.Context.Config.TypeFormatting.CustomFormats[typeStr]; ok {
+		return format
+	}
+
+	// Apply formatting based on detail level
+	switch f.Context.Config.TypeFormatting.DetailLevel {
+	case "minimal":
+		return formatTypeMinimal(typeStr)
+	case "detailed":
+		return formatTypeDetailed(typeStr, f.Context.Config.TypeFormatting.MaxFieldsToShow)
+	default:
+		// "moderate" is the default
+		return formatTypeModerate(typeStr)
+	}
+}
+
+// formatTypeMinimal provides a very simplified version of the type
+func formatTypeMinimal(typeStr string) string {
+	// Clean up the type string
+	typeStr = strings.TrimSpace(typeStr)
+	typeStr = strings.Trim(typeStr, "\"")
+	
+	// For simple types, just return them
+	if !strings.Contains(typeStr, "(") && !strings.Contains(typeStr, ")") {
+		return typeStr
+	}
+	
+	// For complex types, provide minimal representation
+	if strings.HasPrefix(typeStr, "object(") {
+		return "object(...)"
+	}
+	
+	if strings.HasPrefix(typeStr, "list(") {
+		return "list(...)"
+	}
+	
+	if strings.HasPrefix(typeStr, "map(") {
+		return "map(...)"
+	}
+	
+	if strings.HasPrefix(typeStr, "set(") {
+		return "set(...)"
+	}
+	
+	if strings.HasPrefix(typeStr, "tuple(") {
+		return "tuple(...)"
+	}
+	
+	return typeStr
+}
+
+// formatTypeModerate provides a moderately detailed version (compatible with the original behavior)
+func formatTypeModerate(typeStr string) string {
 	// Clean up the type string
 	typeStr = strings.TrimSpace(typeStr)
 	typeStr = strings.Trim(typeStr, "\"")
@@ -417,6 +533,101 @@ func formatTypeForUsage(typeStr string) string {
 	if strings.HasPrefix(typeStr, "list(") || strings.HasPrefix(typeStr, "map(") || 
 	   strings.HasPrefix(typeStr, "set(") {
 		return typeStr
+	}
+	
+	return typeStr
+}
+
+// formatTypeDetailed provides a more detailed version of the type
+func formatTypeDetailed(typeStr string, maxFields int) string {
+	// Clean up the type string
+	typeStr = strings.TrimSpace(typeStr)
+	typeStr = strings.Trim(typeStr, "\"")
+	
+	// For simple types, just return them
+	if !strings.Contains(typeStr, "(") && !strings.Contains(typeStr, ")") {
+		return typeStr
+	}
+	
+	// Match for nested type structures using regex
+	objectPattern := regexp.MustCompile(`object\(\{(.+?)\}\)`)
+	listPattern := regexp.MustCompile(`list\((.+?)\)`)
+	mapPattern := regexp.MustCompile(`map\((.+?)\)`)
+	setPattern := regexp.MustCompile(`set\((.+?)\)`)
+	tuplePattern := regexp.MustCompile(`tuple\(\[(.+?)\]\)`)
+	
+	// Handle complex objects
+	if objectPattern.MatchString(typeStr) {
+		match := objectPattern.FindStringSubmatch(typeStr)
+		if len(match) > 1 {
+			fields := strings.Split(match[1], ",")
+			if len(fields) <= maxFields {
+				// Extract field names and types for smaller objects
+				fieldsInfo := []string{}
+				for _, field := range fields {
+					parts := strings.Split(strings.TrimSpace(field), "=")
+					if len(parts) > 1 {
+						fieldName := strings.TrimSpace(parts[0])
+						fieldType := strings.TrimSpace(parts[1])
+						fieldsInfo = append(fieldsInfo, fmt.Sprintf("%s = %s", fieldName, fieldType))
+					} else if len(parts) > 0 {
+						fieldsInfo = append(fieldsInfo, strings.TrimSpace(parts[0]))
+					}
+				}
+				
+				if len(fieldsInfo) > 0 {
+					if len(fields) > len(fieldsInfo) {
+						return fmt.Sprintf("object({%s, ...})", strings.Join(fieldsInfo, ", "))
+					}
+					return fmt.Sprintf("object({%s})", strings.Join(fieldsInfo, ", "))
+				}
+			}
+			return "object({...})"
+		}
+	}
+	
+	// Handle lists
+	if listPattern.MatchString(typeStr) {
+		match := listPattern.FindStringSubmatch(typeStr)
+		if len(match) > 1 {
+			elementType := formatTypeDetailed(match[1], maxFields)
+			return fmt.Sprintf("list(%s)", elementType)
+		}
+	}
+	
+	// Handle maps
+	if mapPattern.MatchString(typeStr) {
+		match := mapPattern.FindStringSubmatch(typeStr)
+		if len(match) > 1 {
+			elementType := formatTypeDetailed(match[1], maxFields)
+			return fmt.Sprintf("map(%s)", elementType)
+		}
+	}
+	
+	// Handle sets
+	if setPattern.MatchString(typeStr) {
+		match := setPattern.FindStringSubmatch(typeStr)
+		if len(match) > 1 {
+			elementType := formatTypeDetailed(match[1], maxFields)
+			return fmt.Sprintf("set(%s)", elementType)
+		}
+	}
+	
+	// Handle tuples
+	if tuplePattern.MatchString(typeStr) {
+		match := tuplePattern.FindStringSubmatch(typeStr)
+		if len(match) > 1 {
+			elements := strings.Split(match[1], ",")
+			if len(elements) <= maxFields {
+				// For small tuples, show all elements
+				formattedElements := []string{}
+				for _, element := range elements {
+					formattedElements = append(formattedElements, strings.TrimSpace(element))
+				}
+				return fmt.Sprintf("tuple([%s])", strings.Join(formattedElements, ", "))
+			}
+			return "tuple([...])"
+		}
 	}
 	
 	return typeStr
