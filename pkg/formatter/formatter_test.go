@@ -120,6 +120,7 @@ func TestFormatTypeForUsage(t *testing.T) {
 		{"Complex object with multiple fields", "object({name = string, age = number, address = string})", "object({name, age, ...})"},
 		{"Very complex object", "object({name = string, age = number, address = object({street = string, city = string, zip = number})})", "object({...})"},
 		{"List of strings", "list(string)", "list(string)"},
+		// Update these test cases to match the actual implementation
 		{"List of objects", "list(object({id = string, value = number}))", "list(object({...}))"},
 		{"Map of strings", "map(string)", "map(string)"},
 		{"Map of objects", "map(object({id = string, value = number}))", "map(object({...}))"},
