@@ -275,7 +275,7 @@ func (f *UsageFormatter) FormatMarkdown() string {
 		sb.WriteString("  # Required inputs\n")
 		for _, v := range required {
 			formattedType := formatTypeForUsage(v.Type)
-			sb.WriteString(fmt.Sprintf("  %-30s = # %s\n", v.Name, formattedType))
+			sb.WriteString(fmt.Sprintf("  %-29s = # %s\n", v.Name, formattedType))
 		}
 		sb.WriteString("\n")
 	}
@@ -285,7 +285,7 @@ func (f *UsageFormatter) FormatMarkdown() string {
 		sb.WriteString("  # Optional inputs\n")
 		for _, v := range optional {
 			formattedType := formatTypeForUsage(v.Type)
-			sb.WriteString(fmt.Sprintf("  # %-28s = %s\n", v.Name, formattedType))
+			sb.WriteString(fmt.Sprintf("  # %-27s = %s\n", v.Name, formattedType))
 		}
 	}
 	
