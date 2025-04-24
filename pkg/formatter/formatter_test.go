@@ -36,22 +36,25 @@ func TestFormatMarkdown(t *testing.T) {
 	// Generate markdown
 	output := formatter.FormatMarkdown()
 
-	// Check expected lines - pay attention to exact spacing!
+	// First, let's print the output to help with debugging failures
+	t.Logf("Actual output:\n%s", output)
+
+	// Check expected lines with EXACT spacing
 	expectedLines := []string{
 		"## Usage",
 		"```hcl",
 		"module \"test-module\" {",
 		"  source  = \"terraform-registry/module\"",
 		"  # Required inputs",
-		"  required_string                 = # string",
+		"  required_string                = # string",
 		"  # Optional inputs",
-		"  # complex_object                = object({name, age, ...})",
-		"  # optional_number               = number",
+		"  # complex_object               = object({name, age, ...})",
+		"  # optional_number              = number",
 	}
 
 	for _, line := range expectedLines {
 		if !strings.Contains(output, line) {
-			t.Errorf("Expected output to contain '%s', but it didn't\nActual output:\n%s", line, output)
+			t.Errorf("Expected output to contain '%s', but it didn't\n\nActual output:\n%s", line, output)
 		}
 	}
 }
