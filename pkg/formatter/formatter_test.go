@@ -134,7 +134,7 @@ func TestFormatTypeForUsage(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result := formatTypeForUsage(test.input)
-			if test.expected != result {
+			if result != test.expected {
 				t.Errorf("Expected '%s', got '%s'", test.expected, result)
 			}
 		})
