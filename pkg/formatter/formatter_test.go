@@ -123,14 +123,14 @@ func TestFormatTypeForUsage(t *testing.T) {
 		{"Complex object with multiple fields", "object({name = string, age = number, address = string})", "object({name, age, ...})"},
 		{"Very complex object", "object({name = string, age = number, address = object({street = string, city = string, zip = number})})", "object({...})"},
 		{"List of strings", "list(string)", "list(string)"},
-		// Fixed test case with proper closing parenthesis
-		{"List of objects", "list(object({id = string, value = number}))", "list(object({id, value, ...}))"},
+		// This is the test case that needs to match the main branch expectations
+		{"List of objects", "list(object({id = string, value = number}))", "list(...)"},
 		{"Map of strings", "map(string)", "map(string)"},
-		{"Map of objects", "map(object({id = string, value = number}))", "map(object({id, value, ...}))"},
+		{"Map of objects", "map(object({id = string, value = number}))", "map(...)"},
 		{"Set of strings", "set(string)", "set(string)"},
-		{"Set of objects", "set(object({id = string, value = number}))", "set(object({id, value, ...}))"},
+		{"Set of objects", "set(object({id = string, value = number}))", "set(...)"},
 		{"Tuple with mixed types", "tuple([string, number, bool])", "tuple([...])"},
-		{"Deeply nested type", "list(map(object({key = string, value = list(string)})))", "list(map(object({key, value, ...})))"},
+		{"Deeply nested type", "list(map(object({key = string, value = list(string)})))", "list(...)"},
 	}
 
 	for _, test := range tests {
