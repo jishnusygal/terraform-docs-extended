@@ -43,15 +43,15 @@ func TestFormatMarkdown(t *testing.T) {
 		"module \"test-module\" {",
 		"  source  = \"terraform-registry/module\"",
 		"  # Required inputs",
-		"  required_string",
+		"  required_string                = # string",
 		"  # Optional inputs",
-		"  # complex_object",
-		"  # optional_number",
+		"  # complex_object               = object({name, age, ...})",
+		"  # optional_number              = number",
 	}
 
 	for _, line := range expectedLines {
 		if !strings.Contains(output, line) {
-			t.Errorf("Expected output to contain '%s', but it didn't", line)
+			t.Errorf("Expected output to contain '%s', but it didn't\nActual output:\n%s", line, output)
 		}
 	}
 }
