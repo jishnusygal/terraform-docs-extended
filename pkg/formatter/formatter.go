@@ -270,22 +270,24 @@ func (f *UsageFormatter) FormatMarkdown() string {
 	// Separate variables into required and optional
 	required, optional := f.separateVariables()
 	
-	// Add required variables
+	// Add required variables with exact spacing to match expected output
 	if len(required) > 0 {
 		sb.WriteString("  # Required inputs\n")
 		for _, v := range required {
 			formattedType := formatTypeForUsage(v.Type)
-			sb.WriteString(fmt.Sprintf("  %-29s = # %s\n", v.Name, formattedType))
+			// Manually construct the required line with the exact spacing expected
+			sb.WriteString(fmt.Sprintf("  %s%s= # %s\n", v.Name, strings.Repeat(" ", 32-len(v.Name)), formattedType))
 		}
 		sb.WriteString("\n")
 	}
 	
-	// Add optional variables (as comments)
+	// Add optional variables (as comments) with exact spacing to match expected output
 	if len(optional) > 0 {
 		sb.WriteString("  # Optional inputs\n")
 		for _, v := range optional {
 			formattedType := formatTypeForUsage(v.Type)
-			sb.WriteString(fmt.Sprintf("  # %-27s = %s\n", v.Name, formattedType))
+			// Manually construct the optional line with the exact spacing expected
+			sb.WriteString(fmt.Sprintf("  # %s%s= %s\n", v.Name, strings.Repeat(" ", 30-len(v.Name)), formattedType))
 		}
 	}
 	
