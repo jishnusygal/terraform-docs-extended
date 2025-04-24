@@ -265,29 +265,27 @@ func (f *UsageFormatter) FormatMarkdown() string {
 	
 	// Create module block
 	sb.WriteString(fmt.Sprintf("module \"%s\" {\n", f.ModuleName))
-	sb.WriteString(fmt.Sprintf("  source = \"%s\"\n\n", f.ModulePath))
+	sb.WriteString(fmt.Sprintf("  source  = \"%s\"\n\n", f.ModulePath))
 	
 	// Separate variables into required and optional
 	required, optional := f.separateVariables()
 	
 	// Add required variables
 	if len(required) > 0 {
-		sb.WriteString("  # Required variables\n")
+		sb.WriteString("  # Required inputs\n")
 		for _, v := range required {
 			formattedType := formatTypeForUsage(v.Type)
-			exampleValue := generateExampleValue(v.Type, v.Name)
-			sb.WriteString(fmt.Sprintf("  %s = %s  # %s\n", v.Name, exampleValue, formattedType))
+			sb.WriteString(fmt.Sprintf("  %-30s = # %s\n", v.Name, formattedType))
 		}
 		sb.WriteString("\n")
 	}
 	
-	// Add optional variables
+	// Add optional variables (as comments)
 	if len(optional) > 0 {
-		sb.WriteString("  # Optional variables\n")
+		sb.WriteString("  # Optional inputs\n")
 		for _, v := range optional {
 			formattedType := formatTypeForUsage(v.Type)
-			exampleValue := generateExampleValue(v.Type, v.Name)
-			sb.WriteString(fmt.Sprintf("  %s = %s  # %s\n", v.Name, exampleValue, formattedType))
+			sb.WriteString(fmt.Sprintf("  # %-28s = %s\n", v.Name, formattedType))
 		}
 	}
 	
@@ -313,12 +311,10 @@ func (f *UsageFormatter) FormatJSON() map[string]interface{} {
 	// Populate required variables
 	for _, v := range required {
 		formattedType := formatTypeForUsage(v.Type)
-		exampleValue := generateExampleValue(v.Type, v.Name)
 		
 		varInfo := map[string]interface{}{
 			"name": v.Name,
 			"type": formattedType,
-			"example": exampleValue,
 		}
 		
 		usage["required"] = append(
@@ -330,12 +326,10 @@ func (f *UsageFormatter) FormatJSON() map[string]interface{} {
 	// Populate optional variables
 	for _, v := range optional {
 		formattedType := formatTypeForUsage(v.Type)
-		exampleValue := generateExampleValue(v.Type, v.Name)
 		
 		varInfo := map[string]interface{}{
 			"name": v.Name,
 			"type": formattedType,
-			"example": exampleValue,
 		}
 		
 		usage["optional"] = append(
@@ -493,84 +487,6 @@ func formatTypeForUsage(typeStr string) string {
 	}
 	
 	return typeStr
-}
-
-// generateExampleValue creates realistic example values based on variable type
-func generateExampleValue(typeStr string, varName string) string {
-	typeStr = strings.TrimSpace(typeStr)
-	typeStr = strings.Trim(typeStr, "\"")
-	
-	// Basic types
-	if strings.HasPrefix(typeStr, "string") {
-		// Make example based on variable name
-		if strings.Contains(varName, "name") {
-			return "\"example-name\""
-		} else if strings.Contains(varName, "id") {
-			return "\"i-12345abcdef\""
-		} else if strings.Contains(varName, "region") {
-			return "\"us-west-2\""
-		} else if strings.Contains(varName, "zone") {
-			return "\"us-west-2a\""
-		} else if strings.Contains(varName, "arn") {
-			return "\"arn:aws:iam::123456789012:role/example\""
-		} else {
-			return "\"example-value\""
-		}
-	}
-	
-	if strings.HasPrefix(typeStr, "number") {
-		if strings.Contains(varName, "port") {
-			return "8080"
-		} else if strings.Contains(varName, "count") {
-			return "3"
-		} else {
-			return "42"
-		}
-	}
-	
-	if strings.HasPrefix(typeStr, "bool") {
-		return "true"
-	}
-	
-	// Container types
-	if strings.HasPrefix(typeStr, "list") {
-		if strings.Contains(typeStr, "string") {
-			return "[\"item1\", \"item2\"]"
-		} else if strings.Contains(typeStr, "number") {
-			return "[1, 2, 3]"
-		} else {
-			return "[...]"
-		}
-	}
-	
-	if strings.HasPrefix(typeStr, "map") {
-		if strings.Contains(typeStr, "string") {
-			return "{\n    key1 = \"value1\",\n    key2 = \"value2\"\n  }"
-		} else if strings.Contains(typeStr, "number") {
-			return "{\n    key1 = 1,\n    key2 = 2\n  }"
-		} else {
-			return "{\n    key = ...\n  }"
-		}
-	}
-	
-	if strings.HasPrefix(typeStr, "set") {
-		if strings.Contains(typeStr, "string") {
-			return "[\"item1\", \"item2\"]"
-		} else {
-			return "[...]"
-		}
-	}
-	
-	if strings.HasPrefix(typeStr, "object") {
-		return "{\n    attribute1 = \"value1\",\n    attribute2 = \"value2\"\n  }"
-	}
-	
-	if strings.HasPrefix(typeStr, "tuple") {
-		return "[\"item1\", 123, true]"
-	}
-	
-	// Default for any other types
-	return "..."
 }
 
 // min returns the minimum of two integers
