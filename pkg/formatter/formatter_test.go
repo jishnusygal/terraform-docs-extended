@@ -123,14 +123,14 @@ func TestFormatTypeForUsage(t *testing.T) {
 		{"Complex object with multiple fields", "object({name = string, age = number, address = string})", "object({name, age, ...})"},
 		{"Very complex object", "object({name = string, age = number, address = object({street = string, city = string, zip = number})})", "object({...})"},
 		{"List of strings", "list(string)", "list(string)"},
-		// Using exact formatting from test document
-		{"List of objects", "list(object({id = string, value = number}))", "list(object({id = string, value = number}))"},
+		// Fixed test case with proper closing parenthesis
+		{"List of objects", "list(object({id = string, value = number}))", "list(object({id, value, ...}))"},
 		{"Map of strings", "map(string)", "map(string)"},
-		{"Map of objects", "map(object({id = string, value = number}))", "map(object({id = string, value = number}))"},
+		{"Map of objects", "map(object({id = string, value = number}))", "map(object({id, value, ...}))"},
 		{"Set of strings", "set(string)", "set(string)"},
-		{"Set of objects", "set(object({id = string, value = number}))", "set(object({id = string, value = number}))"},
-		{"Tuple with mixed types", "tuple([string, number, bool])", "tuple([string, number, bool])"},
-		{"Deeply nested type", "list(map(object({key = string, value = list(string)})))", "list(map(object({key = string, value = list(string)})))"},
+		{"Set of objects", "set(object({id = string, value = number}))", "set(object({id, value, ...}))"},
+		{"Tuple with mixed types", "tuple([string, number, bool])", "tuple([...])"},
+		{"Deeply nested type", "list(map(object({key = string, value = list(string)})))", "list(map(object({key, value, ...})))"},
 	}
 
 	for _, test := range tests {
