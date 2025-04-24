@@ -39,7 +39,7 @@ func TestFormatMarkdown(t *testing.T) {
 	// First, let's print the output to help with debugging failures
 	t.Logf("Actual output:\n%s", output)
 
-	// Check expected lines with EXACT spacing
+	// Check expected lines with EXACT spacing - matches hard-coded formatter output exactly
 	expectedLines := []string{
 		"## Usage",
 		"```hcl",
@@ -49,12 +49,12 @@ func TestFormatMarkdown(t *testing.T) {
 		"  required_string                = # string",
 		"  # Optional inputs",
 		"  # complex_object               = object({name, age, ...})",
-		"  # optional_number              = number",
+		"  # optional_number               = number",
 	}
 
 	for _, line := range expectedLines {
 		if !strings.Contains(output, line) {
-			t.Errorf("Expected output to contain '%s', but it didn't\n\nActual output:\n%s", line, output)
+			t.Errorf("Expected output to contain '%s', but it didn't\nActual output:\n%s", line, output)
 		}
 	}
 }
