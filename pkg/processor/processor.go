@@ -7,10 +7,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/jishnusygal/terraform-docs-extended/pkg/formatter"
 	"github.com/jishnusygal/terraform-docs-extended/pkg/terraform"
 )
+
+// execCommand is a variable to allow mocking in tests
+var execCommand = exec.Command
 
 // ProcessRecursively handles recursive directory traversal
 func ProcessRecursively(root string, format string, outputFile string, moduleName string, moduleSource string, quiet bool) error {
@@ -140,6 +144,23 @@ func IsTerraformDocsInstalled() bool {
 		return false
 	}
 	return true
+}
+
+// GetTerraformDocsVersion returns the version of terraform-docs
+func GetTerraformDocsVersion() string {
+	cmd := execCommand("terraform-docs", "--version")
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	
+	// Parse version from output like "terraform-docs v0.16.0"
+	versionOutput := string(output)
+	parts := strings.Fields(versionOutput)
+	if len(parts) >= 2 {
+		return parts[1] // Return just the version part
+	}
+	return ""
 }
 
 // MergeVariables combines variable information from terraform-docs with direct parsing
