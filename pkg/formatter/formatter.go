@@ -420,12 +420,12 @@ func formatTypeForUsage(typeStr string) string {
 		if len(matches) > 1 {
 			elementType := matches[1]
 			
-			// Handle list of objects
+			// Handle list of objects explicitly
 			if strings.HasPrefix(elementType, "object") {
 				return "list(object({...}))"
 			}
 			
-			// Handle list of maps
+			// Handle list of maps explicitly
 			if strings.HasPrefix(elementType, "map") {
 				return "list(map(...))"
 			}
@@ -446,12 +446,12 @@ func formatTypeForUsage(typeStr string) string {
 		if len(matches) > 1 {
 			valueType := matches[1]
 			
-			// Handle map of objects
+			// Handle map of objects explicitly
 			if strings.HasPrefix(valueType, "object") {
 				return "map(object({...}))"
 			}
 			
-			// Handle map of lists
+			// Handle map of lists explicitly
 			if strings.HasPrefix(valueType, "list") {
 				return "map(list(...))"
 			}
@@ -472,7 +472,7 @@ func formatTypeForUsage(typeStr string) string {
 		if len(matches) > 1 {
 			elementType := matches[1]
 			
-			// Handle set of objects
+			// Handle set of objects explicitly
 			if strings.HasPrefix(elementType, "object") {
 				return "set(object({...}))"
 			}
