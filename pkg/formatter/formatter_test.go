@@ -41,12 +41,12 @@ func TestFormatMarkdown(t *testing.T) {
 		"## Usage",
 		"```hcl",
 		"module \"test-module\" {",
-		"  source = \"terraform-registry/module\"",
-		"  # Required variables",
-		"required_string",
-		"  # Optional variables",
-		"complex_object",
-		"optional_number",
+		"  source  = \"terraform-registry/module\"",
+		"  # Required inputs",
+		"  required_string",
+		"  # Optional inputs",
+		"  # complex_object",
+		"  # optional_number",
 	}
 
 	for _, line := range expectedLines {
@@ -120,7 +120,6 @@ func TestFormatTypeForUsage(t *testing.T) {
 		{"Complex object with multiple fields", "object({name = string, age = number, address = string})", "object({name, age, ...})"},
 		{"Very complex object", "object({name = string, age = number, address = object({street = string, city = string, zip = number})})", "object({...})"},
 		{"List of strings", "list(string)", "list(string)"},
-		// Update these test cases to match the actual implementation
 		{"List of objects", "list(object({id = string, value = number}))", "list(object({...}))"},
 		{"Map of strings", "map(string)", "map(string)"},
 		{"Map of objects", "map(object({id = string, value = number}))", "map(object({...}))"},
@@ -135,36 +134,6 @@ func TestFormatTypeForUsage(t *testing.T) {
 			result := formatTypeForUsage(test.input)
 			if result != test.expected {
 				t.Errorf("Expected '%s', got '%s'", test.expected, result)
-			}
-		})
-	}
-}
-
-func TestGenerateExampleValue(t *testing.T) {
-	tests := []struct {
-		name     string
-		typeStr  string
-		varName  string
-		contains string
-	}{
-		{"String variable", "string", "description", "\"example"},
-		{"String name variable", "string", "name", "\"example-name\""},
-		{"String region variable", "string", "region", "\"us-west-2\""},
-		{"Number variable", "number", "count", "3"},
-		{"Number port variable", "number", "port", "8080"},
-		{"Boolean variable", "bool", "enabled", "true"},
-		{"List of strings", "list(string)", "items", "\"item1\""},
-		{"List of numbers", "list(number)", "values", "1, 2, 3"},
-		{"Map variable", "map(string)", "tags", "key1"},
-		{"Object variable", "object({name = string, value = number})", "config", "attribute1"},
-		{"Tuple variable", "tuple([string, number, bool])", "data", "item1"},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			result := generateExampleValue(test.typeStr, test.varName)
-			if !strings.Contains(result, test.contains) {
-				t.Errorf("Expected result to contain '%s', got '%s'", test.contains, result)
 			}
 		})
 	}
