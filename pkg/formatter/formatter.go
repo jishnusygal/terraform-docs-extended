@@ -120,16 +120,18 @@ func GenerateMarkdownDoc(module Module, moduleSource string) string {
 func loadTerraformDocsConfig(modulePath string) TerraformDocsConfig {
 	config := TerraformDocsConfig{}
 	
-	// Check for .terraform-docs.yml
+	// Define the order of preference for configuration files
 	configPaths := []string{
-		filepath.Join(modulePath, ".terraform-docs.yml"),
+		filepath.Join(modulePath, ".terraform-docs.yml"),  // Highest priority
 		filepath.Join(modulePath, ".terraform-docs.yaml"),
 		filepath.Join(modulePath, "terraform-docs.yml"),
-		filepath.Join(modulePath, "terraform-docs.yaml"),
+		filepath.Join(modulePath, "terraform-docs.yaml"),  // Lowest priority
 	}
 	
 	for _, path := range configPaths {
 		if fileExists(path) {
+			log.Printf("Loading terraform-docs configuration from: %s", path)
+			
 			// Use terraform-docs to get the config
 			cmd := exec.Command("terraform-docs", "json", "--config", path, modulePath)
 			output, err := cmd.Output()
