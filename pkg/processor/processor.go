@@ -2,7 +2,6 @@ package processor
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -81,7 +80,7 @@ func ProcessDirectory(path string, format string, outputPath string, moduleName 
 
 	// Output the documentation
 	if outputPath != "" {
-		if err := ioutil.WriteFile(outputPath, []byte(docContent), 0644); err != nil {
+		if err := os.WriteFile(outputPath, []byte(docContent), 0644); err != nil {
 			return fmt.Errorf("failed to write output file: %v", err)
 		}
 		if !quiet {
