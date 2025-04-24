@@ -36,17 +36,17 @@ func TestFormatMarkdown(t *testing.T) {
 	// Generate markdown
 	output := formatter.FormatMarkdown()
 
-	// Check expected lines
+	// Check expected lines - pay attention to exact spacing!
 	expectedLines := []string{
 		"## Usage",
 		"```hcl",
 		"module \"test-module\" {",
 		"  source  = \"terraform-registry/module\"",
 		"  # Required inputs",
-		"  required_string                = # string",
+		"  required_string                 = # string",
 		"  # Optional inputs",
-		"  # complex_object               = object({name, age, ...})",
-		"  # optional_number              = number",
+		"  # complex_object                = object({name, age, ...})",
+		"  # optional_number               = number",
 	}
 
 	for _, line := range expectedLines {
