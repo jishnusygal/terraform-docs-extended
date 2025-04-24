@@ -1,0 +1,37 @@
+formatter: markdown
+
+sections:
+  show:
+    - requirements
+    - providers
+    - inputs
+    - outputs
+
+content: |-
+  {{ .Header }}
+
+  {{ .Body }}
+
+  {{ .Footer }}
+
+output:
+  file: README.md
+  mode: replace
+
+header: |-
+  # Sample Terraform Module
+  
+  This is a sample module header that gets included from the terraform-docs config.
+  
+  ## Overview
+  
+  This module demonstrates the header/footer inclusion capability of terraform-docs-extended.
+
+footer: |-
+  ## Contributing
+  
+  Contributions to this module are welcome! Please see our [contributing guidelines](../CONTRIBUTING.md).
+  
+  ## License
+  
+  MIT
