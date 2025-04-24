@@ -285,16 +285,16 @@ func formatTypeForUsage(typeStr string) string {
 	}
 	
 	// For lists, maps, and sets with complex element types
-	for _, prefix := range []string{"list(", "map(", "set("} {
-		if strings.HasPrefix(typeStr, prefix) && strings.Contains(typeStr, "object(") {
-			elementStart := len(prefix)
-			elementEnd := len(typeStr) - 1
-			element := typeStr[elementStart:elementEnd]
-			
-			if len(element) > 30 {
-				return prefix + "...)"
-			}
-		}
+	if strings.HasPrefix(typeStr, "list(") && strings.Contains(typeStr, "object(") {
+		return "list(...)"
+	}
+	
+	if strings.HasPrefix(typeStr, "map(") && strings.Contains(typeStr, "object(") {
+		return "map(...)"
+	}
+	
+	if strings.HasPrefix(typeStr, "set(") && strings.Contains(typeStr, "object(") {
+		return "set(...)"
 	}
 	
 	return typeStr
