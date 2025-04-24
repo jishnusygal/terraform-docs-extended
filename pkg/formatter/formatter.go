@@ -3,7 +3,6 @@ package formatter
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -31,8 +30,8 @@ type Module struct {
 
 // TerraformDocsConfig represents the configuration from terraform-docs
 type TerraformDocsConfig struct {
-	Header   string `json:"header"`
-	Footer   string `json:"footer"`
+	Header   string   `json:"header"`
+	Footer   string   `json:"footer"`
 	Sections sections `json:"sections,omitempty"`
 }
 
