@@ -90,23 +90,21 @@ func TestFormatJSON(t *testing.T) {
 	}
 
 	// Check required variables
-	requiredVars, ok := output["required"].([]map[string]interface{})
-	if !ok {
+	if requiredVars, ok := output["required"].([]map[string]interface{}); ok {
+		if len(requiredVars) != 1 {
+			t.Errorf("Expected 1 required variable, got %d", len(requiredVars))
+		}
+	} else {
 		t.Fatalf("Expected required to be a slice of maps, got %T", output["required"])
 	}
 
-	if len(requiredVars) != 1 {
-		t.Errorf("Expected 1 required variable, got %d", len(requiredVars))
-	}
-
 	// Check optional variables
-	optionalVars, ok := output["optional"].([]map[string]interface{})
-	if !ok {
+	if optionalVars, ok := output["optional"].([]map[string]interface{}); ok {
+		if len(optionalVars) != 1 {
+			t.Errorf("Expected 1 optional variable, got %d", len(optionalVars))
+		}
+	} else {
 		t.Fatalf("Expected optional to be a slice of maps, got %T", output["optional"])
-	}
-
-	if len(optionalVars) != 1 {
-		t.Errorf("Expected 1 optional variable, got %d", len(optionalVars))
 	}
 }
 
