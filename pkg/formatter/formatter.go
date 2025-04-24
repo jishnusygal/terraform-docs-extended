@@ -3,8 +3,11 @@ package formatter
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -26,6 +29,18 @@ type Module struct {
 	Variables map[string]Variable `json:"variables"`
 }
 
+// TerraformDocsConfig represents the configuration from terraform-docs
+type TerraformDocsConfig struct {
+	Header   string `json:"header"`
+	Footer   string `json:"footer"`
+	Sections sections `json:"sections,omitempty"`
+}
+
+type sections struct {
+	Hide []string `json:"hide,omitempty"`
+	Show []string `json:"show,omitempty"`
+}
+
 // GenerateDoc creates the complete documentation
 func GenerateDoc(module Module, format string, moduleSource string) string {
 	switch format {
@@ -42,13 +57,19 @@ func GenerateDoc(module Module, format string, moduleSource string) string {
 // GenerateMarkdownDoc generates Markdown documentation
 func GenerateMarkdownDoc(module Module, moduleSource string) string {
 	var sb strings.Builder
-
+	
 	// Create a usage formatter
 	formatter := NewUsageFormatter(module.Variables, module.Name, moduleSource)
 	
-	// Add the usage section
-	sb.WriteString(formatter.FormatMarkdown())
-
+	// Get the header and footer from terraform-docs config, if it exists
+	config := loadTerraformDocsConfig(module.Path)
+	
+	// Add header from terraform-docs config if available
+	if config.Header != "" {
+		sb.WriteString(config.Header)
+		sb.WriteString("\n\n")
+	}
+	
 	// Add the remaining documentation by running terraform-docs
 	cmd := exec.Command("terraform-docs", "md", module.Path)
 	output, err := cmd.Output()
@@ -83,8 +104,65 @@ func GenerateMarkdownDoc(module Module, moduleSource string) string {
 			sb.WriteString(fmt.Sprintf("| %s | %s | %s |\n", v.Name, v.Type, required))
 		}
 	}
+	
+	// Add the usage section at the end
+	sb.WriteString(formatter.FormatMarkdown())
+	
+	// Add footer from terraform-docs config if available
+	if config.Footer != "" {
+		sb.WriteString("\n")
+		sb.WriteString(config.Footer)
+	}
 
 	return sb.String()
+}
+
+// loadTerraformDocsConfig attempts to load the terraform-docs configuration
+func loadTerraformDocsConfig(modulePath string) TerraformDocsConfig {
+	config := TerraformDocsConfig{}
+	
+	// Check for .terraform-docs.yml
+	configPaths := []string{
+		filepath.Join(modulePath, ".terraform-docs.yml"),
+		filepath.Join(modulePath, ".terraform-docs.yaml"),
+		filepath.Join(modulePath, "terraform-docs.yml"),
+		filepath.Join(modulePath, "terraform-docs.yaml"),
+	}
+	
+	for _, path := range configPaths {
+		if fileExists(path) {
+			// Use terraform-docs to get the config
+			cmd := exec.Command("terraform-docs", "json", "--config", path, modulePath)
+			output, err := cmd.Output()
+			if err == nil {
+				var jsonOutput map[string]interface{}
+				if json.Unmarshal(output, &jsonOutput) == nil {
+					// Extract header and footer
+					content, ok := jsonOutput["content"].(map[string]interface{})
+					if ok {
+						if header, ok := content["header"].(string); ok {
+							config.Header = header
+						}
+						if footer, ok := content["footer"].(string); ok {
+							config.Footer = footer
+						}
+					}
+				}
+			}
+			break
+		}
+	}
+	
+	return config
+}
+
+// fileExists checks if a file exists
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
 }
 
 // GenerateJSONDoc generates JSON documentation
@@ -95,12 +173,23 @@ func GenerateJSONDoc(module Module, moduleSource string) string {
 	// Get the structured usage section
 	usage := formatter.FormatJSON()
 	
+	// Get the header and footer from terraform-docs config, if it exists
+	config := loadTerraformDocsConfig(module.Path)
+	
 	// Create the full document
 	doc := map[string]interface{}{
 		"module_name": module.Name,
 		"module_path": module.Path,
-		"usage": usage,
 		"variables": []map[string]interface{}{},
+		"usage": usage,
+	}
+	
+	// Add header and footer if available
+	if config.Header != "" {
+		doc["header"] = config.Header
+	}
+	if config.Footer != "" {
+		doc["footer"] = config.Footer
 	}
 	
 	// Sort variables by name for consistent output
@@ -186,7 +275,9 @@ func (f *UsageFormatter) FormatMarkdown() string {
 	if len(required) > 0 {
 		sb.WriteString("  # Required variables\n")
 		for _, v := range required {
-			sb.WriteString(fmt.Sprintf("  %s = %s\n", v.Name, formatTypeForUsage(v.Type)))
+			formattedType := formatTypeForUsage(v.Type)
+			exampleValue := generateExampleValue(v.Type, v.Name)
+			sb.WriteString(fmt.Sprintf("  %s = %s  # %s\n", v.Name, exampleValue, formattedType))
 		}
 		sb.WriteString("\n")
 	}
@@ -195,7 +286,9 @@ func (f *UsageFormatter) FormatMarkdown() string {
 	if len(optional) > 0 {
 		sb.WriteString("  # Optional variables\n")
 		for _, v := range optional {
-			sb.WriteString(fmt.Sprintf("  %s = %s\n", v.Name, formatTypeForUsage(v.Type)))
+			formattedType := formatTypeForUsage(v.Type)
+			exampleValue := generateExampleValue(v.Type, v.Name)
+			sb.WriteString(fmt.Sprintf("  %s = %s  # %s\n", v.Name, exampleValue, formattedType))
 		}
 	}
 	
@@ -211,8 +304,8 @@ func (f *UsageFormatter) FormatJSON() map[string]interface{} {
 	usage := map[string]interface{}{
 		"module_name": f.ModuleName,
 		"source": f.ModulePath,
-		"required": []map[string]string{},
-		"optional": []map[string]string{},
+		"required": []map[string]interface{}{},
+		"optional": []map[string]interface{}{},
 	}
 	
 	// Separate variables
@@ -220,26 +313,34 @@ func (f *UsageFormatter) FormatJSON() map[string]interface{} {
 	
 	// Populate required variables
 	for _, v := range required {
-		varInfo := map[string]string{
+		formattedType := formatTypeForUsage(v.Type)
+		exampleValue := generateExampleValue(v.Type, v.Name)
+		
+		varInfo := map[string]interface{}{
 			"name": v.Name,
-			"type": formatTypeForUsage(v.Type),
+			"type": formattedType,
+			"example": exampleValue,
 		}
 		
 		usage["required"] = append(
-			usage["required"].([]map[string]string),
+			usage["required"].([]map[string]interface{}),
 			varInfo,
 		)
 	}
 	
 	// Populate optional variables
 	for _, v := range optional {
-		varInfo := map[string]string{
+		formattedType := formatTypeForUsage(v.Type)
+		exampleValue := generateExampleValue(v.Type, v.Name)
+		
+		varInfo := map[string]interface{}{
 			"name": v.Name,
-			"type": formatTypeForUsage(v.Type),
+			"type": formattedType,
+			"example": exampleValue,
 		}
 		
 		usage["optional"] = append(
-			usage["optional"].([]map[string]string),
+			usage["optional"].([]map[string]interface{}),
 			varInfo,
 		)
 	}
@@ -277,25 +378,206 @@ func formatTypeForUsage(typeStr string) string {
 	typeStr = strings.TrimSpace(typeStr)
 	typeStr = strings.Trim(typeStr, "\"")
 	
-	// For complex objects, provide a simplified representation
-	if strings.HasPrefix(typeStr, "object(") {
-		if len(typeStr) > 50 {
-			return "object({...})"
+	// Match for nested type structures using regex
+	objectPattern := regexp.MustCompile(`object\(\{(.+?)\}\)`)
+	listPattern := regexp.MustCompile(`list\((.+?)\)`)
+	mapPattern := regexp.MustCompile(`map\((.+?)\)`)
+	setPattern := regexp.MustCompile(`set\((.+?)\)`)
+	tuplePattern := regexp.MustCompile(`tuple\(\[(.+?)\]\)`)
+	
+	// 1. Handle complex objects
+	if objectPattern.MatchString(typeStr) {
+		// Get object structure
+		matches := objectPattern.FindStringSubmatch(typeStr)
+		if len(matches) > 1 {
+			objContent := matches[1]
+			
+			// If object is complex (contains many fields), simplify it
+			if strings.Count(objContent, ",") > 2 || len(objContent) > 50 {
+				return "object({...})"
+			} else {
+				// Otherwise, keep a simplified version
+				fields := strings.Split(objContent, ",")
+				simpleFields := make([]string, 0, len(fields))
+				for _, field := range fields {
+					parts := strings.SplitN(strings.TrimSpace(field), "=", 2)
+					if len(parts) == 2 {
+						name := strings.TrimSpace(parts[0])
+						simpleFields = append(simpleFields, name)
+					}
+				}
+				
+				if len(simpleFields) > 0 {
+					return fmt.Sprintf("object({%s, ...})", strings.Join(simpleFields[:min(2, len(simpleFields))], ", "))
+				}
+			}
 		}
+		return "object({...})"
 	}
 	
-	// For lists, maps, and sets with complex element types
-	if strings.HasPrefix(typeStr, "list(") && strings.Contains(typeStr, "object(") {
+	// 2. Handle lists with complex elements
+	if listPattern.MatchString(typeStr) {
+		matches := listPattern.FindStringSubmatch(typeStr)
+		if len(matches) > 1 {
+			elementType := matches[1]
+			
+			// Handle list of objects
+			if strings.HasPrefix(elementType, "object") {
+				return "list(object({...}))"
+			}
+			
+			// Handle list of maps
+			if strings.HasPrefix(elementType, "map") {
+				return "list(map(...))"
+			}
+			
+			// If element type is complex, simplify it
+			if len(elementType) > 30 {
+				return "list(...)"
+			}
+			
+			return fmt.Sprintf("list(%s)", elementType)
+		}
 		return "list(...)"
 	}
 	
-	if strings.HasPrefix(typeStr, "map(") && strings.Contains(typeStr, "object(") {
+	// 3. Handle maps with complex values
+	if mapPattern.MatchString(typeStr) {
+		matches := mapPattern.FindStringSubmatch(typeStr)
+		if len(matches) > 1 {
+			valueType := matches[1]
+			
+			// Handle map of objects
+			if strings.HasPrefix(valueType, "object") {
+				return "map(object({...}))"
+			}
+			
+			// Handle map of lists
+			if strings.HasPrefix(valueType, "list") {
+				return "map(list(...))"
+			}
+			
+			// If value type is complex, simplify it
+			if len(valueType) > 30 {
+				return "map(...)"
+			}
+			
+			return fmt.Sprintf("map(%s)", valueType)
+		}
 		return "map(...)"
 	}
 	
-	if strings.HasPrefix(typeStr, "set(") && strings.Contains(typeStr, "object(") {
+	// 4. Handle sets with complex elements
+	if setPattern.MatchString(typeStr) {
+		matches := setPattern.FindStringSubmatch(typeStr)
+		if len(matches) > 1 {
+			elementType := matches[1]
+			
+			// Handle set of objects
+			if strings.HasPrefix(elementType, "object") {
+				return "set(object({...}))"
+			}
+			
+			// If element type is complex, simplify it
+			if len(elementType) > 30 {
+				return "set(...)"
+			}
+			
+			return fmt.Sprintf("set(%s)", elementType)
+		}
 		return "set(...)"
 	}
 	
+	// 5. Handle tuples
+	if tuplePattern.MatchString(typeStr) {
+		return "tuple([...])"
+	}
+	
 	return typeStr
+}
+
+// generateExampleValue creates realistic example values based on variable type
+func generateExampleValue(typeStr string, varName string) string {
+	typeStr = strings.TrimSpace(typeStr)
+	typeStr = strings.Trim(typeStr, "\"")
+	
+	// Basic types
+	if strings.HasPrefix(typeStr, "string") {
+		// Make example based on variable name
+		if strings.Contains(varName, "name") {
+			return "\"example-name\""
+		} else if strings.Contains(varName, "id") {
+			return "\"i-12345abcdef\""
+		} else if strings.Contains(varName, "region") {
+			return "\"us-west-2\""
+		} else if strings.Contains(varName, "zone") {
+			return "\"us-west-2a\""
+		} else if strings.Contains(varName, "arn") {
+			return "\"arn:aws:iam::123456789012:role/example\""
+		} else {
+			return "\"example-value\""
+		}
+	}
+	
+	if strings.HasPrefix(typeStr, "number") {
+		if strings.Contains(varName, "port") {
+			return "8080"
+		} else if strings.Contains(varName, "count") {
+			return "3"
+		} else {
+			return "42"
+		}
+	}
+	
+	if strings.HasPrefix(typeStr, "bool") {
+		return "true"
+	}
+	
+	// Container types
+	if strings.HasPrefix(typeStr, "list") {
+		if strings.Contains(typeStr, "string") {
+			return "[\"item1\", \"item2\"]"
+		} else if strings.Contains(typeStr, "number") {
+			return "[1, 2, 3]"
+		} else {
+			return "[...]"
+		}
+	}
+	
+	if strings.HasPrefix(typeStr, "map") {
+		if strings.Contains(typeStr, "string") {
+			return "{\n    key1 = \"value1\",\n    key2 = \"value2\"\n  }"
+		} else if strings.Contains(typeStr, "number") {
+			return "{\n    key1 = 1,\n    key2 = 2\n  }"
+		} else {
+			return "{\n    key = ...\n  }"
+		}
+	}
+	
+	if strings.HasPrefix(typeStr, "set") {
+		if strings.Contains(typeStr, "string") {
+			return "[\"item1\", \"item2\"]"
+		} else {
+			return "[...]"
+		}
+	}
+	
+	if strings.HasPrefix(typeStr, "object") {
+		return "{\n    attribute1 = \"value1\",\n    attribute2 = \"value2\"\n  }"
+	}
+	
+	if strings.HasPrefix(typeStr, "tuple") {
+		return "[\"item1\", 123, true]"
+	}
+	
+	// Default for any other types
+	return "..."
+}
+
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
